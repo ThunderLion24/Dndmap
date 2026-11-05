@@ -1,0 +1,1556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dungeon Table</title>
+<style>
+:root{
+  --bg:#13100d; --stage:#0c0a08; --panel:#1d1813; --panel2:#29211a; --panel3:#342a20;
+  --line:#3e3328; --text:#ece1cc; --muted:#a6957c; --gold:#e0a944;
+  --pc:#5cc27e; --enemy:#e0554a; --good:#4caf6a; --bad:#d9443a; --temp:#5aa9e6;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{display:grid;grid-template-rows:auto 1fr;height:100vh;overflow:hidden}
+header{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font:700 19px/1 Georgia,"Times New Roman",serif;margin:0 6px 0 0;color:var(--gold);letter-spacing:.5px;white-space:nowrap}
+#mapName{font:italic 15px Georgia,serif;color:var(--muted);padding:3px 6px;border-radius:4px;outline:none;min-width:60px}
+#mapName:hover,#mapName:focus{background:var(--panel2);color:var(--text)}
+.spacer{flex:1}
+main{display:grid;grid-template-columns:236px 1fr 344px;min-height:0}
+aside{background:var(--panel);overflow-y:auto;padding:12px;min-height:0}
+aside.left{border-right:1px solid var(--line)}
+aside.right{border-left:1px solid var(--line)}
+#stage{position:relative;overflow:hidden;background:var(--stage)}
+#cv{display:block;width:100%;height:100%;touch-action:none}
+h2{font:600 10.5px/1 system-ui,sans-serif;text-transform:uppercase;letter-spacing:1.3px;color:var(--muted);margin:18px 0 8px;display:flex;align-items:center;gap:6px}
+aside > h2:first-child, section + h2{margin-top:4px}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;transition:background .12s,border-color .12s}
+button:hover{background:var(--panel3);border-color:#5a4a39}
+button:active{transform:translateY(1px)}
+button.on{border-color:var(--gold);background:#3a2e1d;color:#ffe2a8}
+button.primary{background:#7a5a22;border-color:var(--gold);color:#fff3da}
+button.danger{background:#5a1f1a;border-color:#8a3128}
+button.danger:hover{background:#73271f}
+button.good{background:#1f4a2a;border-color:#2f6e3d}
+button.good:hover{background:#285c35}
+button.wide{width:100%;margin-top:6px}
+input[type=number],input[type=text],input:not([type]),select,textarea{background:#15110d;border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+input:focus,select:focus,textarea:focus{outline:1px solid var(--gold);border-color:var(--gold)}
+label{display:block;color:var(--muted);font-size:12px}
+label.check{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--text);cursor:pointer}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.row4{display:grid;grid-template-columns:auto auto 1fr auto;gap:6px}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tools button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px;font-size:18px}
+.tools button span{font-size:10.5px;color:var(--muted)}
+.tools button.on span{color:#ffe2a8}
+.terrain{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.terrain button{display:flex;align-items:center;gap:7px;padding:5px 7px;text-align:left;font-size:12px}
+.terrain i{width:18px;height:18px;border-radius:4px;flex:none;border:1px solid rgba(0,0,0,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.seg{display:flex;gap:4px}
+.seg button{flex:1;padding:5px 0}
+.help{color:var(--muted);font-size:11.5px;line-height:1.7}
+kbd{background:var(--panel3);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font:11px ui-monospace,Menlo,monospace;color:var(--text)}
+.zoom{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:4px}
+.zoom button{width:34px;height:34px;padding:0;font-size:18px;background:rgba(29,24,19,.9)}
+.status{position:absolute;left:12px;bottom:12px;background:rgba(29,24,19,.88);border:1px solid var(--line);border-radius:6px;padding:4px 9px;font-size:11.5px;color:var(--muted);pointer-events:none}
+.pvBadge{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:#7a5a22;color:#fff3da;border:1px solid var(--gold);padding:4px 12px;border-radius:20px;font-size:12px;pointer-events:none;display:none}
+body.pv .pvBadge{display:block}
+.switch{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer;color:var(--text);font-size:13px}
+
+/* selected token */
+#selPanel{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:6px}
+#selPanel .empty{color:var(--muted);text-align:center;padding:18px 0}
+.selHead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.avatar,.av{display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--c) 60%,#fff),var(--c));flex:none}
+.avatar{width:44px;height:44px;font-size:24px;box-shadow:0 0 0 2px rgba(0,0,0,.4)}
+.av{width:24px;height:24px;font-size:13px}
+.selName{font:700 16px Georgia,serif}
+.badge{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.8px;padding:1px 6px;border-radius:10px;background:var(--panel3);color:var(--muted);margin-top:2px}
+.badge.pc{background:#1f4a2a;color:#a9e8bd}
+.badge.enemy{background:#5a1f1a;color:#ffb3aa}
+.hpbar{position:relative;background:#120e0b;border:1px solid #000;border-radius:6px;overflow:hidden}
+.hpbar .fill,.hpbar .tmp{position:absolute;top:0;bottom:0;left:0}
+.hpbar .fill{transition:width .15s,background .15s}
+.hpbar .tmp{background:repeating-linear-gradient(45deg,var(--temp) 0 6px,#3f86c2 6px 12px)}
+.hpbar.big{height:30px;cursor:ew-resize;user-select:none;box-shadow:inset 0 2px 6px rgba(0,0,0,.6)}
+.hpbar.big.dragging .fill{transition:none}
+.hpbar.big .fill::after{content:"";position:absolute;inset:0 0 50% 0;background:linear-gradient(rgba(255,255,255,.25),rgba(255,255,255,0))}
+.hpbar .lbl{position:absolute;inset:0;display:grid;place-items:center;font:700 14px system-ui;text-shadow:0 1px 2px #000,0 0 4px #000;pointer-events:none}
+.hpbar.mini{height:6px;border-radius:3px;margin-top:3px}
+.hint{font-size:11px;color:var(--muted);margin:4px 0 8px;text-align:center}
+.quick{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.quick button{padding:5px 0;font-size:12px}
+.quick button.neg{color:#ff9d93}
+.quick button.pos{color:#9fe3b3}
+.dmgRow{display:grid;grid-template-columns:1fr auto auto auto;gap:4px;margin-top:6px}
+.dmgRow button{padding:6px 8px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.stats div{background:#15110d;border:1px solid var(--line);border-radius:8px;text-align:center;padding:5px 0}
+.stats b{display:block;font:700 16px Georgia,serif}
+.stats span{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.conds{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+.cond{font-size:11px;padding:2px 8px;border-radius:12px;background:transparent;color:var(--muted)}
+.cond.on{background:color-mix(in srgb,var(--c) 30%,transparent);border-color:var(--c);color:#fff}
+.notes{margin-top:10px;font-size:12px;color:var(--muted);white-space:pre-wrap;border-left:2px solid var(--line);padding-left:8px}
+.ds{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;background:#15110d;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px}
+.ds .dots{display:flex;gap:4px;align-items:center}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);cursor:pointer;display:inline-block}
+.dot.s.on{background:var(--good);border-color:var(--good)}
+.dot.f.on{background:var(--bad);border-color:var(--bad)}
+.defeated{margin-top:10px;text-align:center;color:#ff9d93;font:italic 14px Georgia,serif}
+
+/* roster */
+.roster{display:flex;flex-direction:column;gap:4px}
+.card{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:var(--panel2);border:1px solid transparent;cursor:pointer}
+.card:hover{border-color:var(--line)}
+.card.sel{border-color:var(--gold)}
+.card.down{opacity:.55}
+.card .ci{flex:1;min-width:0}
+.card .cn{display:flex;justify-content:space-between;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .cn small{color:var(--muted)}
+.hpn{font:600 11.5px ui-monospace,Menlo,monospace;color:var(--muted);min-width:46px;text-align:right}
+.emptyList{color:var(--muted);font-size:12px;padding:4px 2px}
+
+/* initiative */
+#roundLbl{margin-left:auto;color:var(--gold);letter-spacing:1px}
+#initList{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:3px}
+#initList li{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:7px;background:var(--panel2);border:1px solid transparent;cursor:pointer}
+#initList li.active{border-color:var(--gold);background:#3a2e1d;box-shadow:0 0 12px rgba(224,169,68,.25)}
+#initList li.down{opacity:.5;text-decoration:line-through}
+#initList li .iv{width:46px;padding:2px 4px;text-align:center}
+#initList li .n{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.initBtns{display:grid;grid-template-columns:1fr auto auto auto;gap:4px}
+
+/* dice */
+.dice{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.dice button{padding:6px 0;font-weight:600}
+#diceForm{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:6px}
+#diceLog{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;max-height:260px;overflow-y:auto}
+#diceLog li{display:flex;align-items:center;gap:8px;background:var(--panel2);border-radius:7px;padding:5px 8px}
+#diceLog li b{font:700 18px Georgia,serif;min-width:34px;text-align:center}
+#diceLog li.nat20 b{color:#7fe0a0}
+#diceLog li.nat1 b{color:#ff8278}
+#diceLog li .dd{flex:1;min-width:0}
+#diceLog li .dd div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#diceLog li small{color:var(--muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10.5px}
+#diceLog li button{padding:2px 6px;font-size:12px}
+
+/* dialog */
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:18px;width:min(460px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.6)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog h3{margin:0 0 12px;font:700 18px Georgia,serif;color:var(--gold)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.grid2 label input,.grid2 label select{margin-top:3px}
+input[type=color]{width:100%;height:33px;padding:2px;background:#15110d;border:1px solid var(--line);border-radius:6px;margin-top:3px}
+.emojis{display:flex;flex-wrap:wrap;gap:3px;margin:10px 0}
+.emojis button{padding:3px 5px;font-size:17px;background:transparent;border-color:transparent}
+.emojis button:hover{border-color:var(--line)}
+dialog textarea{margin-top:3px;resize:vertical}
+.dlgBtns{display:flex;gap:6px;margin-top:14px}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#2b2219;border:1px solid var(--gold);padding:8px 16px;border-radius:8px;opacity:0;transition:.25s;pointer-events:none;z-index:10}
+#toast.show{opacity:1;transform:translateX(-50%)}
+
+@media (max-width:1100px){
+  main{grid-template-columns:200px 1fr 300px}
+}
+@media (max-width:820px){
+  body{overflow:auto;height:auto}
+  main{grid-template-columns:1fr}
+  #stage{height:70vh}
+  aside.left{border-right:0;border-bottom:1px solid var(--line);order:2}
+  aside.right{border-left:0;order:3}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚔ Dungeon Table</h1>
+  <span id="mapName" contenteditable="true" spellcheck="false" title="Click to rename"></span>
+  <div class="spacer"></div>
+  <button id="undoBtn" title="Undo (Ctrl/⌘+Z)">↶ Undo</button>
+  <label class="switch" title="Hides fogged areas and hidden tokens (P)"><input type="checkbox" id="pvChk"> Player view</label>
+  <button id="fitBtn" title="Fit map to screen (0)">⤢ Fit</button>
+  <button id="exportBtn" title="Download map + tokens as JSON">⭳ Export</button>
+  <button id="importBtn" title="Load a previously exported JSON">⭱ Import</button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+  <button id="newBtn">✚ New map</button>
+</header>
+
+<main>
+<aside class="left">
+  <h2>Tools</h2>
+  <div class="tools" id="tools">
+    <button data-tool="select" title="Move tokens / pan (V)">🖐<span>Move</span></button>
+    <button data-tool="paint" title="Paint terrain (B)">🖌<span>Paint</span></button>
+    <button data-tool="erase" title="Erase terrain (E)">🧽<span>Erase</span></button>
+    <button data-tool="fill" title="Flood fill (F)">🪣<span>Fill</span></button>
+    <button data-tool="fogHide" title="Paint fog (H)">🌫<span>Fog</span></button>
+    <button data-tool="fogReveal" title="Reveal fog (G)">🔦<span>Reveal</span></button>
+    <button data-tool="ruler" title="Measure distance (R)">📏<span>Ruler</span></button>
+    <button data-tool="pan" title="Pan the map (Space)">✋<span>Pan</span></button>
+  </div>
+
+  <h2>Terrain</h2>
+  <div class="terrain" id="terrainList"></div>
+
+  <h2>Brush size</h2>
+  <div class="seg" id="brushSeg">
+    <button data-b="1">1</button><button data-b="2">2</button><button data-b="3">3</button><button data-b="5">5</button>
+  </div>
+
+  <h2>Map</h2>
+  <div class="row2" style="margin-top:0">
+    <label>Columns <input id="colsIn" type="number" min="5" max="150"></label>
+    <label>Rows <input id="rowsIn" type="number" min="5" max="150"></label>
+  </div>
+  <button id="resizeBtn" class="wide">Resize map</button>
+  <button id="fillAllBtn" class="wide">Fill whole map with terrain</button>
+  <button id="clearBtn" class="wide">Clear all terrain</button>
+  <label class="check"><input type="checkbox" id="gridChk"> Show grid</label>
+
+  <h2>Fog of war</h2>
+  <div class="row2" style="margin-top:0">
+    <button id="fogAllBtn">Cover all</button>
+    <button id="fogNoneBtn">Reveal all</button>
+  </div>
+
+  <h2>Background image</h2>
+  <button id="bgBtn" class="wide" style="margin-top:0">Upload map image…</button>
+  <input type="file" id="bgFile" accept="image/*" hidden>
+  <label style="margin-top:8px">Image opacity <input type="range" id="bgOp" min="0" max="1" step="0.05" style="width:100%"></label>
+  <button id="bgClear" class="wide">Remove image</button>
+
+  <h2>Shortcuts</h2>
+  <div class="help">
+    <kbd>V</kbd> move · <kbd>B</kbd> paint · <kbd>E</kbd> erase<br>
+    <kbd>F</kbd> fill · <kbd>H</kbd>/<kbd>G</kbd> fog · <kbd>R</kbd> ruler<br>
+    <kbd>Space</kbd>/right-drag to pan · wheel zoom<br>
+    <kbd>←↑→↓</kbd> nudge token · <kbd>Del</kbd> remove<br>
+    <kbd>N</kbd> next turn · <kbd>P</kbd> player view<br>
+    <kbd>⌘/Ctrl Z</kbd> undo · double-click token to edit
+  </div>
+</aside>
+
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div class="pvBadge">Player view — fog is opaque, hidden tokens are invisible</div>
+  <div class="status" id="status"></div>
+  <div class="zoom">
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zout" title="Zoom out">−</button>
+  </div>
+</div>
+
+<aside class="right">
+  <section id="selPanel"></section>
+
+  <h2>Initiative <span id="roundLbl"></span></h2>
+  <div class="initBtns">
+    <button id="initRoll" title="Roll d20 + init mod for every token">🎲 Roll initiative</button>
+    <button id="initPrev" title="Previous turn">◀</button>
+    <button id="initNext" title="Next turn (N)">Next ▶</button>
+    <button id="initEnd" title="End combat">■</button>
+  </div>
+  <ol id="initList"></ol>
+
+  <h2>Party</h2>
+  <div class="roster" id="pcList"></div>
+  <button id="addPcBtn" class="wide">+ Add character</button>
+
+  <h2>Enemies</h2>
+  <div class="roster" id="enList"></div>
+  <div class="row2">
+    <select id="presetSel"></select>
+    <button id="addEnBtn">+ Add enemy</button>
+  </div>
+
+  <h2>Dice</h2>
+  <div class="dice" id="diceBtns"></div>
+  <form id="diceForm">
+    <input id="diceExpr" placeholder="e.g. 2d6+3, 1d20-1" autocomplete="off">
+    <button class="primary">Roll</button>
+  </form>
+  <ul id="diceLog"></ul>
+</aside>
+</main>
+
+<dialog id="tokDlg">
+  <form method="dialog" id="tokForm">
+    <h3 id="dlgTitle">Edit token</h3>
+    <div class="grid2">
+      <label>Name <input name="name" required maxlength="40"></label>
+      <label>Type
+        <select name="type"><option value="pc">Character</option><option value="enemy">Enemy</option></select>
+      </label>
+      <label>Icon (emoji or letter) <input name="icon" maxlength="8"></label>
+      <label>Color <input type="color" name="color"></label>
+      <label>Current HP <input type="number" name="hp" min="0"></label>
+      <label>Max HP <input type="number" name="maxHp" min="1" required></label>
+      <label>Temp HP <input type="number" name="temp" min="0"></label>
+      <label>Armor Class <input type="number" name="ac" min="0"></label>
+      <label>Initiative modifier <input type="number" name="initMod"></label>
+      <label>Size
+        <select name="size">
+          <option value="1">Small / Medium (1×1)</option>
+          <option value="2">Large (2×2)</option>
+          <option value="3">Huge (3×3)</option>
+          <option value="4">Gargantuan (4×4)</option>
+        </select>
+      </label>
+    </div>
+    <div class="emojis" id="emojiPick"></div>
+    <label>Notes <textarea name="notes" rows="3" placeholder="Spells, attacks, loot…"></textarea></label>
+    <label class="check"><input type="checkbox" name="hidden"> Hidden from players (invisible in player view)</label>
+    <div class="dlgBtns">
+      <button value="delete" id="dlgDel" class="danger" formnovalidate>Delete</button>
+      <button value="dup" id="dlgDup" title="Save and make a copy">Duplicate</button>
+      <span class="spacer"></span>
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button value="ok" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ================================================================
+   Constants & data
+   ================================================================ */
+const KEY = 'dungeon-table-v1';
+const C = 48;                       // world pixels per grid cell
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+const TERRAIN = {
+  floor:  { name: 'Stone floor', color: '#8b7d6b' },
+  wood:   { name: 'Wood planks', color: '#8a5a32' },
+  dirt:   { name: 'Dirt path',   color: '#6e5238' },
+  grass:  { name: 'Grass',       color: '#5b8a3a' },
+  forest: { name: 'Forest',      color: '#4c7a30' },
+  sand:   { name: 'Sand',        color: '#cdb57e' },
+  water:  { name: 'Water',       color: '#2f6e9c' },
+  deep:   { name: 'Deep water',  color: '#1c466e' },
+  lava:   { name: 'Lava',        color: '#c9481a' },
+  ice:    { name: 'Ice',         color: '#a9d3e6' },
+  wall:   { name: 'Wall',        color: '#3a3530' },
+  door:   { name: 'Door',        color: '#6e4520' },
+};
+
+const CONDITIONS = [
+  ['Blinded', '#9e9e9e'], ['Charmed', '#ec6fb5'], ['Deafened', '#8c8c6c'], ['Frightened', '#a77bd6'],
+  ['Grappled', '#c9874a'], ['Incapacitated', '#7d8590'], ['Invisible', '#9fd6ff'], ['Paralyzed', '#e3d34a'],
+  ['Petrified', '#a0a0a0'], ['Poisoned', '#6fbf4a'], ['Prone', '#b08060'], ['Restrained', '#d08a3a'],
+  ['Stunned', '#f0c040'], ['Unconscious', '#6a6a8a'], ['Concentrating', '#5aa9e6'],
+];
+const COND_COLOR = Object.fromEntries(CONDITIONS);
+
+// Stats from the D&D 5e SRD 5.1
+const PRESETS = {
+  goblin:   { name: 'Goblin',          icon: '👺', color: '#6a8f3a', maxHp: 7,  ac: 15, initMod: 2,  size: 1 },
+  bandit:   { name: 'Bandit',          icon: '🗡️', color: '#8a5a3c', maxHp: 11, ac: 12, initMod: 1,  size: 1 },
+  cultist:  { name: 'Cultist',         icon: '🕯️', color: '#6b2d4a', maxHp: 9,  ac: 12, initMod: 1,  size: 1 },
+  wolf:     { name: 'Wolf',            icon: '🐺', color: '#7b7f86', maxHp: 11, ac: 13, initMod: 2,  size: 1 },
+  skeleton: { name: 'Skeleton',        icon: '💀', color: '#cfc8b4', maxHp: 13, ac: 13, initMod: 2,  size: 1 },
+  orc:      { name: 'Orc',             icon: '👹', color: '#58743a', maxHp: 15, ac: 13, initMod: 1,  size: 1 },
+  zombie:   { name: 'Zombie',          icon: '🧟', color: '#5b7a52', maxHp: 22, ac: 8,  initMod: -2, size: 1 },
+  spider:   { name: 'Giant Spider',    icon: '🕷️', color: '#3b3346', maxHp: 26, ac: 14, initMod: 3,  size: 2 },
+  ogre:     { name: 'Ogre',            icon: '🧌', color: '#8a6a3c', maxHp: 59, ac: 11, initMod: -1, size: 2 },
+  wyrmling: { name: 'Red Dragon Wyrmling', icon: '🐉', color: '#b3271c', maxHp: 75, ac: 17, initMod: 0, size: 1 },
+};
+
+const EMOJIS = ['🧙','🧝','🧔','👩‍🦰','🛡️','⚔️','🏹','🔮','🎻','🙏','🐉','👺','👹','🧌','💀','🧟','🐺','🕷️','🦇','🐻','🐍','👻','🗡️','🕯️','🐀','🧛','🤖','⭐'];
+
+/* ================================================================
+   Helpers
+   ================================================================ */
+const uid = () => Math.random().toString(36).slice(2, 10);
+function hash(x, y, s = 0) {
+  let h = (x * 374761393 + y * 668265263 + s * 1442695041) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+function shade(hex, a) { // a in [-1,1]: negative darkens, positive lightens
+  const n = parseInt(hex.slice(1), 16);
+  let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  const t = a < 0 ? 0 : 255, p = Math.abs(a);
+  r = Math.round(r + (t - r) * p); g = Math.round(g + (t - g) * p); b = Math.round(b + (t - b) * p);
+  return `rgb(${r},${g},${b})`;
+}
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtMod = n => (n >= 0 ? '+' : '') + n;
+function rnd(faces) { const a = new Uint32Array(1); crypto.getRandomValues(a); return 1 + (a[0] % faces); }
+function hpColor(f) { return f > 0.5 ? '#4caf50' : f > 0.25 ? '#e0b23a' : '#d9443a'; }
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400); }
+
+/* ================================================================
+   State
+   ================================================================ */
+function mkToken(o) {
+  const t = Object.assign({ id: uid(), name: 'Token', type: 'pc', icon: '🙂', color: '#4caf6a', hp: 10, maxHp: 10, temp: 0,
+    ac: 10, initMod: 0, init: null, x: 0, y: 0, size: 1, conds: [], notes: '', hidden: false, ds: [0, 0] }, o);
+  if (o && o.hp == null) t.hp = t.maxHp;
+  return t;
+}
+
+function sampleState() {
+  const cols = 32, rows = 22;
+  const tiles = new Array(cols * rows).fill('grass');
+  const fog = new Array(cols * rows).fill(false);
+  const set = (x, y, t) => { if (x >= 0 && y >= 0 && x < cols && y < rows) tiles[y * cols + x] = t; };
+  const rect = (x0, y0, x1, y1, t) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, t); };
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (hash(x, y, 7) > 0.85) set(x, y, 'forest');
+  for (let y = 0; y < rows; y++) {               // winding river
+    const cx = Math.round(15 + Math.sin(y / 3) * 1.5);
+    set(cx - 1, y, 'sand'); set(cx + 2, y, 'sand');
+    set(cx, y, 'water'); set(cx + 1, y, 'water');
+  }
+  // Room A — the party's camp
+  rect(2, 3, 12, 13, 'wall'); rect(3, 4, 11, 12, 'floor'); set(12, 8, 'door'); rect(4, 5, 5, 6, 'wood');
+  // Room B — the ogre's lair
+  rect(19, 4, 29, 17, 'wall'); rect(20, 5, 28, 16, 'floor'); set(19, 8, 'door');
+  rect(23, 9, 25, 11, 'lava');
+  [[21, 6], [27, 6], [21, 15], [27, 15]].forEach(([x, y]) => set(x, y, 'wall'));
+  // path + bridge
+  for (let x = 13; x <= 18; x++) set(x, 8, tiles[8 * cols + x] === 'water' ? 'wood' : 'dirt');
+  for (let y = 5; y <= 16; y++) for (let x = 23; x <= 28; x++) fog[y * cols + x] = true; // back of the lair is unexplored
+
+  const tokens = [
+    mkToken({ name: 'Aria',  type: 'pc', icon: '🏹', color: '#3fa34d', maxHp: 28, hp: 28, ac: 15, initMod: 3, x: 6, y: 7, notes: 'Elf ranger. Hunter\'s Mark.' }),
+    mkToken({ name: 'Borin', type: 'pc', icon: '🛡️', color: '#3b82c4', maxHp: 44, hp: 37, ac: 18, initMod: 1, x: 7, y: 9, notes: 'Dwarf fighter. Second Wind available.' }),
+    mkToken({ name: 'Mira',  type: 'pc', icon: '🔮', color: '#8b5cf6', maxHp: 22, hp: 22, temp: 5, ac: 12, initMod: 2, x: 5, y: 10, notes: 'Human wizard. 3 / 4 lvl-1 slots left.' }),
+    mkToken({ ...PRESETS.goblin, type: 'enemy', name: 'Goblin', x: 13, y: 4 }),
+    mkToken({ ...PRESETS.goblin, type: 'enemy', name: 'Goblin 2', x: 18, y: 12, hp: 4 }),
+    mkToken({ ...PRESETS.ogre, type: 'enemy', x: 24, y: 13 }),
+  ];
+  return { v: 1, name: 'The Sunken Keep', map: { cols, rows, tiles, fog, grid: true, bg: null, bgOpacity: 1 }, tokens, init: { order: [], idx: 0, round: 1 }, log: [] };
+}
+
+function blankState(cols, rows) {
+  return { v: 1, name: 'Untitled map', map: { cols, rows, tiles: new Array(cols * rows).fill('floor'), fog: new Array(cols * rows).fill(false), grid: true, bg: null, bgOpacity: 1 },
+    tokens: [], init: { order: [], idx: 0, round: 1 }, log: [] };
+}
+
+function normalize(s) {
+  const m = s.map;
+  const n = m.cols * m.rows;
+  if (!Array.isArray(m.tiles) || m.tiles.length !== n) m.tiles = new Array(n).fill(null);
+  if (!Array.isArray(m.fog) || m.fog.length !== n) m.fog = new Array(n).fill(false);
+  m.tiles = m.tiles.map(t => (t && TERRAIN[t]) ? t : null);
+  if (m.grid == null) m.grid = true;
+  if (m.bgOpacity == null) m.bgOpacity = 1;
+  s.tokens = s.tokens.map(t => mkToken(t));
+  s.init = s.init || { order: [], idx: 0, round: 1 };
+  s.init.order = s.init.order.filter(id => s.tokens.some(t => t.id === id));
+  s.log = Array.isArray(s.log) ? s.log.slice(0, 40) : [];
+  s.name = s.name || 'Untitled map';
+  return s;
+}
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && s.map && Array.isArray(s.tokens)) return normalize(s);
+  } catch (e) { /* storage unavailable or corrupt */ }
+  return null;
+}
+
+let state = load() || sampleState();
+let saveT;
+function save() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e) { toast('Autosave failed (background image too large?) — use Export to keep your map.'); }
+  }, 400);
+}
+
+/* ---------------- undo ---------------- */
+const undoStack = [];
+function pushUndo() {
+  const snap = JSON.stringify({ ...state, map: { ...state.map, bg: null } });
+  if (undoStack[undoStack.length - 1] === snap) return;
+  undoStack.push(snap);
+  if (undoStack.length > 60) undoStack.shift();
+}
+function undo() {
+  const snap = undoStack.pop();
+  if (!snap) { toast('Nothing to undo'); return; }
+  const bg = state.map.bg;
+  state = normalize(JSON.parse(snap));
+  state.map.bg = bg;
+  if (!byId(selectedId)) selectedId = null;
+  rebuildTerrain(); syncMapInputs(); renderPanels(); renderDiceLog(); dirty = true; save();
+}
+
+/* ================================================================
+   Terrain rendering (cached offscreen)
+   ================================================================ */
+const terrainCv = document.createElement('canvas');
+const tctx = terrainCv.getContext('2d');
+let bgImg = null;
+
+function drawTile(ctx, t, cx, cy) {
+  const T = TERRAIN[t]; if (!T) return;
+  const x = cx * C, y = cy * C, h = hash(cx, cy), h2 = hash(cx, cy, 3), h3 = hash(cx, cy, 5);
+  const base = (t === 'forest') ? TERRAIN.grass.color : T.color;
+  ctx.fillStyle = shade(base, (h - 0.5) * 0.16);
+  ctx.fillRect(x, y, C, C);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y, C, C); ctx.clip();
+  ctx.lineCap = 'round';
+  switch (t) {
+    case 'floor': {
+      ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, C - 2, C - 2);
+      ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x + 3, y + C - 3); ctx.lineTo(x + 3, y + 3); ctx.lineTo(x + C - 3, y + 3); ctx.stroke();
+      if (h2 > 0.65) {
+        ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x + C * h3, y + 6); ctx.lineTo(x + C * 0.5, y + C * 0.45); ctx.lineTo(x + C * (1 - h), y + C - 8); ctx.stroke();
+      }
+      break;
+    }
+    case 'wood': {
+      ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1.5;
+      for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x, y + i * C / 4); ctx.lineTo(x + C, y + i * C / 4); ctx.stroke(); }
+      for (let i = 0; i < 4; i++) {
+        const sx = x + ((h * 100 + i * 23) % C);
+        ctx.beginPath(); ctx.moveTo(sx, y + i * C / 4); ctx.lineTo(sx, y + (i + 1) * C / 4); ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(255,220,170,.08)'; ctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x, y + i * C / 4 + 3); ctx.lineTo(x + C, y + i * C / 4 + 3); ctx.stroke(); }
+      break;
+    }
+    case 'dirt': case 'sand': {
+      for (let i = 0; i < 9; i++) {
+        const px = x + hash(cx, cy, 10 + i) * C, py = y + hash(cx, cy, 30 + i) * C;
+        ctx.fillStyle = i % 2 ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.12)';
+        ctx.beginPath(); ctx.arc(px, py, 1 + hash(cx, cy, 50 + i) * 1.6, 0, 7); ctx.fill();
+      }
+      break;
+    }
+    case 'grass': case 'forest': {
+      ctx.lineWidth = 1.4;
+      for (let i = 0; i < 7; i++) {
+        const px = x + hash(cx, cy, 10 + i) * C, py = y + 6 + hash(cx, cy, 30 + i) * (C - 6);
+        ctx.strokeStyle = i % 2 ? 'rgba(20,50,10,.45)' : 'rgba(170,220,110,.28)';
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + (hash(cx, cy, 60 + i) - 0.5) * 5, py - 5); ctx.stroke();
+      }
+      if (t === 'forest') {
+        const trees = h2 > 0.5 ? 2 : 1;
+        for (let i = 0; i < trees; i++) {
+          const r = C * (trees === 1 ? 0.36 : 0.26);
+          const tx = x + C / 2 + (trees === 1 ? (h3 - 0.5) * 6 : (i ? 1 : -1) * C * 0.2);
+          const ty = y + C / 2 + (trees === 1 ? (h - 0.5) * 6 : (i ? 1 : -1) * C * 0.18);
+          ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.arc(tx + 3, ty + 4, r, 0, 7); ctx.fill();
+          const g = ctx.createRadialGradient(tx - r * 0.35, ty - r * 0.35, r * 0.1, tx, ty, r);
+          g.addColorStop(0, '#4f8f35'); g.addColorStop(1, '#1f4a1c');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(tx, ty, r, 0, 7); ctx.fill();
+        }
+      }
+      break;
+    }
+    case 'water': case 'deep': {
+      ctx.strokeStyle = t === 'water' ? 'rgba(200,235,255,.35)' : 'rgba(150,200,255,.2)'; ctx.lineWidth = 1.5;
+      for (let i = 0; i < 3; i++) {
+        const wy = y + 10 + i * 14 + h2 * 4, wx = x + 4 + ((h * 30 + i * 11) % 16);
+        ctx.beginPath(); ctx.moveTo(wx, wy); ctx.quadraticCurveTo(wx + 6, wy - 4, wx + 12, wy); ctx.quadraticCurveTo(wx + 18, wy + 4, wx + 24, wy); ctx.stroke();
+      }
+      break;
+    }
+    case 'lava': {
+      for (let i = 0; i < 3; i++) {
+        const px = x + hash(cx, cy, 10 + i) * C, py = y + hash(cx, cy, 30 + i) * C, r = 6 + hash(cx, cy, 50 + i) * 10;
+        const g = ctx.createRadialGradient(px, py, 0, px, py, r);
+        g.addColorStop(0, 'rgba(255,240,140,.95)'); g.addColorStop(0.5, 'rgba(255,160,40,.6)'); g.addColorStop(1, 'rgba(255,80,0,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, r, 0, 7); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(60,10,0,.55)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x, y + C * h); ctx.lineTo(x + C * 0.5, y + C * h2); ctx.lineTo(x + C, y + C * h3); ctx.stroke();
+      break;
+    }
+    case 'ice': {
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x + C * h, y); ctx.lineTo(x + C * h2, y + C * 0.6); ctx.lineTo(x + C, y + C * h3); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(x + 4, y + 4, C * 0.4, 3);
+      break;
+    }
+    case 'wall': {
+      ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 1.5;
+      const bh = C / 4;
+      for (let r = 0; r < 4; r++) {
+        ctx.beginPath(); ctx.moveTo(x, y + r * bh); ctx.lineTo(x + C, y + r * bh); ctx.stroke();
+        const off = r % 2 ? C / 4 : 0;
+        for (let bx = off; bx < C; bx += C / 2) { ctx.beginPath(); ctx.moveTo(x + bx, y + r * bh); ctx.lineTo(x + bx, y + (r + 1) * bh); ctx.stroke(); }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.06)';
+      for (let r = 0; r < 4; r++) ctx.fillRect(x, y + r * bh + 1, C, 2);
+      break;
+    }
+    case 'door': {
+      ctx.fillStyle = TERRAIN.floor.color; ctx.fillRect(x, y, C, C);
+      ctx.fillStyle = '#6e4520'; ctx.fillRect(x + 4, y + 4, C - 8, C - 8);
+      ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 1.5;
+      for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x + 4 + i * (C - 8) / 4, y + 4); ctx.lineTo(x + 4 + i * (C - 8) / 4, y + C - 4); ctx.stroke(); }
+      ctx.fillStyle = '#2b2b2b'; ctx.fillRect(x + 4, y + 12, C - 8, 4); ctx.fillRect(x + 4, y + C - 16, C - 8, 4);
+      ctx.fillStyle = '#e0b84a'; ctx.beginPath(); ctx.arc(x + C - 12, y + C / 2, 3, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#2a1a0c'; ctx.lineWidth = 2; ctx.strokeRect(x + 4, y + 4, C - 8, C - 8);
+      break;
+    }
+  }
+  ctx.restore();
+}
+
+function rebuildTerrain() {
+  const m = state.map;
+  terrainCv.width = m.cols * C; terrainCv.height = m.rows * C;
+  tctx.clearRect(0, 0, terrainCv.width, terrainCv.height);
+  for (let y = 0; y < m.rows; y++) for (let x = 0; x < m.cols; x++) {
+    const t = m.tiles[y * m.cols + x];
+    if (t) drawTile(tctx, t, x, y);
+  }
+  dirty = true;
+}
+
+function setTile(x, y, t) {
+  const m = state.map;
+  if (x < 0 || y < 0 || x >= m.cols || y >= m.rows) return;
+  const i = y * m.cols + x;
+  if (m.tiles[i] === t) return;
+  m.tiles[i] = t;
+  tctx.clearRect(x * C, y * C, C, C);
+  if (t) drawTile(tctx, t, x, y);
+  dirty = true;
+}
+function setFog(x, y, v) {
+  const m = state.map;
+  if (x < 0 || y < 0 || x >= m.cols || y >= m.rows) return;
+  m.fog[y * m.cols + x] = v; dirty = true;
+}
+
+function loadBg() {
+  bgImg = null;
+  if (!state.map.bg) { dirty = true; return; }
+  const img = new Image();
+  img.onload = () => { bgImg = img; dirty = true; };
+  img.src = state.map.bg;
+}
+
+/* ================================================================
+   View & canvas
+   ================================================================ */
+const cv = $('#cv'), ctx = cv.getContext('2d'), stage = $('#stage');
+let view = { x: 40, y: 40, z: 1 };
+let dirty = true, now = 0;
+let tool = 'select', terrain = 'floor', brush = 1, selectedId = null, playerView = false;
+let hoverCell = null, spaceDown = false, ptr = null, ruler = null;
+const floaters = [];
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const r = stage.getBoundingClientRect();
+  cv.width = Math.max(1, Math.round(r.width * dpr)); cv.height = Math.max(1, Math.round(r.height * dpr));
+  dirty = true;
+}
+new ResizeObserver(resizeCanvas).observe(stage);
+
+function fitView() {
+  const r = stage.getBoundingClientRect(), m = state.map;
+  const W = m.cols * C, H = m.rows * C, pad = 30;
+  view.z = clamp(Math.min((r.width - pad * 2) / W, (r.height - pad * 2) / H), 0.15, 3);
+  view.x = (r.width - W * view.z) / 2; view.y = (r.height - H * view.z) / 2;
+  dirty = true;
+}
+function zoomAt(f, mx, my) {
+  const nz = clamp(view.z * f, 0.15, 4);
+  view.x = mx - (mx - view.x) * nz / view.z;
+  view.y = my - (my - view.y) * nz / view.z;
+  view.z = nz; dirty = true;
+}
+function centerOn(t) {
+  const r = stage.getBoundingClientRect();
+  view.x = r.width / 2 - (t.x + t.size / 2) * C * view.z;
+  view.y = r.height / 2 - (t.y + t.size / 2) * C * view.z;
+  dirty = true;
+}
+function toWorld(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left - view.x) / view.z, y: (e.clientY - r.top - view.y) / view.z }; }
+const toCell = w => ({ x: Math.floor(w.x / C), y: Math.floor(w.y / C) });
+const inMap = c => c.x >= 0 && c.y >= 0 && c.x < state.map.cols && c.y < state.map.rows;
+const byId = id => state.tokens.find(t => t.id === id);
+const sel = () => byId(selectedId);
+const activeId = () => state.init.order.length ? state.init.order[state.init.idx] : null;
+const fogAt = (x, y) => !!state.map.fog[y * state.map.cols + x];
+
+function tokenVisible(t) {
+  if (!playerView) return true;
+  if (t.hidden) return false;
+  if (t.type === 'enemy') { // hide enemies whose every cell is fogged
+    for (let dy = 0; dy < t.size; dy++) for (let dx = 0; dx < t.size; dx++) {
+      const x = t.x + dx, y = t.y + dy;
+      if (x < state.map.cols && y < state.map.rows && !fogAt(x, y)) return true;
+    }
+    return false;
+  }
+  return true;
+}
+
+function hitToken(w) {
+  for (let i = state.tokens.length - 1; i >= 0; i--) {
+    const t = state.tokens[i];
+    if (!tokenVisible(t)) continue;
+    const r = t.size * C / 2, cx = t.x * C + r, cy = t.y * C + r;
+    if ((w.x - cx) ** 2 + (w.y - cy) ** 2 <= r * r) return t;
+  }
+  return null;
+}
+
+/* ================================================================
+   Render
+   ================================================================ */
+function render() {
+  dirty = false;
+  const dpr = window.devicePixelRatio || 1, m = state.map, W = m.cols * C, H = m.rows * C;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#0c0a08'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(dpr * view.z, 0, 0, dpr * view.z, dpr * view.x, dpr * view.y);
+
+  // map base + drop shadow
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 30;
+  ctx.fillStyle = '#1b1712'; ctx.fillRect(0, 0, W, H); ctx.restore();
+  if (bgImg) { ctx.globalAlpha = m.bgOpacity; ctx.drawImage(bgImg, 0, 0, W, H); ctx.globalAlpha = 1; }
+  ctx.drawImage(terrainCv, 0, 0);
+
+  // grid
+  if (m.grid) {
+    ctx.strokeStyle = 'rgba(0,0,0,.32)'; ctx.lineWidth = Math.max(1, 1 / view.z);
+    ctx.beginPath();
+    for (let x = 0; x <= m.cols; x++) { ctx.moveTo(x * C, 0); ctx.lineTo(x * C, H); }
+    for (let y = 0; y <= m.rows; y++) { ctx.moveTo(0, y * C); ctx.lineTo(W, y * C); }
+    ctx.stroke();
+  }
+
+  // drag path
+  if (ptr && ptr.mode === 'drag' && ptr.moved) {
+    const t = ptr.tok, r = t.size * C / 2;
+    const ax = ptr.ox * C + r, ay = ptr.oy * C + r;
+    const c = dragCell(ptr);
+    drawMeasure(ax, ay, c.x * C + r, c.y * C + r, Math.max(Math.abs(c.x - ptr.ox), Math.abs(c.y - ptr.oy)) * 5);
+    ctx.fillStyle = 'rgba(224,169,68,.18)'; ctx.fillRect(c.x * C, c.y * C, t.size * C, t.size * C);
+  }
+
+  // tokens — larger ones first so small ones sit on top
+  const list = [...state.tokens].sort((a, b) => b.size - a.size);
+  for (const t of list) if (tokenVisible(t)) drawToken(t);
+
+  // fog
+  if (m.fog.some(Boolean)) {
+    ctx.fillStyle = playerView ? '#050403' : 'rgba(10,8,14,.55)';
+    ctx.beginPath();
+    for (let y = 0; y < m.rows; y++) for (let x = 0; x < m.cols; x++) if (m.fog[y * m.cols + x]) ctx.rect(x * C - 0.5, y * C - 0.5, C + 1, C + 1);
+    ctx.fill();
+    if (!playerView) { // hatch so the DM can tell what's hidden
+      ctx.save(); ctx.clip(); ctx.strokeStyle = 'rgba(160,140,220,.18)'; ctx.lineWidth = 2;
+      ctx.beginPath(); for (let d = -H; d < W; d += 14) { ctx.moveTo(d, 0); ctx.lineTo(d + H, H); } ctx.stroke(); ctx.restore();
+    }
+  }
+
+  // floaters (damage / heal numbers)
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    const f = floaters[i], age = (now - f.t0) / 1100;
+    if (age >= 1) { floaters.splice(i, 1); continue; }
+    ctx.globalAlpha = 1 - age * age;
+    ctx.font = '800 22px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.strokeText(f.text, f.x, f.y - age * 36);
+    ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y - age * 36);
+    ctx.globalAlpha = 1;
+  }
+
+  // ruler
+  if (ruler) {
+    const a = ruler.a, b = ruler.b;
+    drawMeasure(a.x * C + C / 2, a.y * C + C / 2, b.x * C + C / 2, b.y * C + C / 2, Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y)) * 5);
+  }
+
+  // brush preview
+  if (hoverCell && ['paint', 'erase', 'fogHide', 'fogReveal'].includes(tool) && !ptr?.panning) {
+    const off = Math.floor((brush - 1) / 2);
+    ctx.strokeStyle = tool.startsWith('fog') ? '#b9a6ff' : tool === 'erase' ? '#ff8a80' : '#ffe2a8';
+    ctx.lineWidth = 2 / view.z; ctx.setLineDash([6 / view.z, 4 / view.z]);
+    ctx.strokeRect((hoverCell.x - off) * C, (hoverCell.y - off) * C, brush * C, brush * C);
+    ctx.setLineDash([]);
+  } else if (hoverCell && tool === 'fill' && inMap(hoverCell)) {
+    ctx.strokeStyle = '#ffe2a8'; ctx.lineWidth = 2 / view.z; ctx.strokeRect(hoverCell.x * C, hoverCell.y * C, C, C);
+  }
+
+  // border
+  ctx.strokeStyle = '#4a3c2c'; ctx.lineWidth = 3 / view.z; ctx.strokeRect(0, 0, W, H);
+  updateStatus();
+}
+
+function drawMeasure(ax, ay, bx, by, ft) {
+  ctx.save();
+  ctx.strokeStyle = '#ffd36b'; ctx.lineWidth = 3 / view.z; ctx.setLineDash([10 / view.z, 6 / view.z]);
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = '#ffd36b';
+  ctx.beginPath(); ctx.arc(ax, ay, 5 / view.z, 0, 7); ctx.arc(bx, by, 5 / view.z, 0, 7); ctx.fill();
+  const label = `${ft} ft`;
+  ctx.font = `700 ${Math.max(12, 15 / view.z)}px system-ui,sans-serif`;
+  const tw = ctx.measureText(label).width, pad = 6 / view.z, lh = Math.max(12, 15 / view.z);
+  const lx = bx + 12 / view.z, ly = by - 12 / view.z - lh;
+  ctx.fillStyle = 'rgba(20,16,12,.92)'; ctx.fillRect(lx, ly, tw + pad * 2, lh + pad * 1.4);
+  ctx.fillStyle = '#ffd36b'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(label, lx + pad, ly + pad * 0.7);
+  ctx.restore();
+}
+
+function drawToken(t) {
+  const dragging = ptr && ptr.mode === 'drag' && ptr.tok === t && ptr.moved;
+  const s = t.size * C, r = s / 2;
+  const px = dragging ? ptr.wx - ptr.offX : t.x * C, py = dragging ? ptr.wy - ptr.offY : t.y * C;
+  const cx = px + r, cy = py + r, rr = r - 5;
+  const down = t.hp <= 0;
+  const isSel = t.id === selectedId, isActive = t.id === activeId();
+
+  ctx.save();
+  if (t.hidden && !playerView) ctx.globalAlpha = 0.55;
+
+  // active-turn glow
+  if (isActive) {
+    const pulse = 0.5 + 0.5 * Math.sin(now / 260);
+    ctx.fillStyle = `rgba(224,169,68,${0.18 + pulse * 0.22})`;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 6 + pulse * 3, 0, 7); ctx.fill();
+  }
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,.45)';
+  ctx.beginPath(); ctx.ellipse(cx + 2, cy + 4, rr, rr * 0.95, 0, 0, 7); ctx.fill();
+  // body
+  const g = ctx.createRadialGradient(cx - rr * 0.35, cy - rr * 0.4, rr * 0.1, cx, cy, rr);
+  g.addColorStop(0, shade(t.color, 0.35)); g.addColorStop(1, shade(t.color, -0.25));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = t.type === 'pc' ? '#bdf0cc' : '#ff8a7d';
+  ctx.stroke();
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.beginPath(); ctx.arc(cx, cy, rr + 1.5, 0, 7); ctx.stroke();
+  // icon
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const icon = t.icon || t.name.charAt(0).toUpperCase();
+  ctx.font = `${Math.round(rr * 1.05)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif`;
+  ctx.fillStyle = '#fff'; ctx.fillText(icon, cx, cy + rr * 0.06);
+  // downed
+  if (down) {
+    ctx.fillStyle = 'rgba(15,12,10,.62)'; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#d9443a'; ctx.lineWidth = 4;
+    const k = rr * 0.5;
+    ctx.beginPath(); ctx.moveTo(cx - k, cy - k); ctx.lineTo(cx + k, cy + k); ctx.moveTo(cx + k, cy - k); ctx.lineTo(cx - k, cy + k); ctx.stroke();
+  }
+  // selection ring
+  if (isSel) {
+    ctx.strokeStyle = '#ffd36b'; ctx.lineWidth = 2.5; ctx.setLineDash([7, 5]);
+    ctx.lineDashOffset = -now / 40;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // HP bar
+  const bw = s - 10, bh = 6, bx = px + 5, by = py - 4;
+  const f = clamp(t.hp / t.maxHp, 0, 1), tf = clamp(t.temp / t.maxHp, 0, 1 - f);
+  ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+  ctx.fillStyle = '#2a1512'; ctx.fillRect(bx, by, bw, bh);
+  ctx.fillStyle = hpColor(f); ctx.fillRect(bx, by, bw * f, bh);
+  if (t.temp > 0) { ctx.fillStyle = '#5aa9e6'; ctx.fillRect(bx + bw * f, by, Math.max(2, bw * tf), bh); }
+  // conditions as dots
+  t.conds.slice(0, 5).forEach((c, i) => {
+    ctx.fillStyle = COND_COLOR[c] || '#aaa';
+    ctx.beginPath(); ctx.arc(px + s - 6 - i * 9, py + s - 6, 4, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
+  });
+  // name label
+  if (view.z > 0.45 || isSel) {
+    ctx.font = '600 11px system-ui,sans-serif'; ctx.textBaseline = 'top';
+    const tw = ctx.measureText(t.name).width;
+    ctx.fillStyle = 'rgba(15,12,9,.82)';
+    ctx.fillRect(cx - tw / 2 - 4, py + s + 1, tw + 8, 15);
+    ctx.fillStyle = t.type === 'pc' ? '#d6f5df' : '#ffd0ca';
+    ctx.fillText(t.name, cx, py + s + 3);
+  }
+  ctx.restore();
+}
+
+function updateStatus() {
+  const names = { select: 'Move', paint: 'Paint · ' + TERRAIN[terrain].name, erase: 'Erase', fill: 'Fill · ' + TERRAIN[terrain].name,
+    fogHide: 'Fog', fogReveal: 'Reveal', ruler: 'Ruler', pan: 'Pan' };
+  const c = hoverCell && inMap(hoverCell) ? ` · (${hoverCell.x}, ${hoverCell.y})` : '';
+  $('#status').textContent = `${names[tool]}${c} · ${Math.round(view.z * 100)}%`;
+}
+
+function loop(t) {
+  now = t;
+  if (dirty || floaters.length || activeId() || selectedId) render();
+  requestAnimationFrame(loop);
+}
+
+/* ================================================================
+   Map editing
+   ================================================================ */
+function brushApply(cx, cy) {
+  const off = Math.floor((brush - 1) / 2);
+  for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
+    const x = cx - off + dx, y = cy - off + dy;
+    if (tool === 'paint') setTile(x, y, terrain);
+    else if (tool === 'erase') setTile(x, y, null);
+    else if (tool === 'fogHide') setFog(x, y, true);
+    else if (tool === 'fogReveal') setFog(x, y, false);
+  }
+}
+function line(a, b, fn) {
+  let x0 = a.x, y0 = a.y;
+  const dx = Math.abs(b.x - x0), dy = -Math.abs(b.y - y0), sx = x0 < b.x ? 1 : -1, sy = y0 < b.y ? 1 : -1;
+  let err = dx + dy;
+  for (let guard = 0; guard < 10000; guard++) {
+    fn(x0, y0);
+    if (x0 === b.x && y0 === b.y) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+function floodFill(c) {
+  const m = state.map; if (!inMap(c)) return;
+  const target = m.tiles[c.y * m.cols + c.x];
+  if (target === terrain) return;
+  const stack = [[c.x, c.y]], seen = new Uint8Array(m.cols * m.rows);
+  while (stack.length) {
+    const [x, y] = stack.pop();
+    if (x < 0 || y < 0 || x >= m.cols || y >= m.rows) continue;
+    const i = y * m.cols + x;
+    if (seen[i] || m.tiles[i] !== target) continue;
+    seen[i] = 1; setTile(x, y, terrain);
+    stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+}
+function resizeMap(cols, rows) {
+  const m = state.map;
+  const tiles = new Array(cols * rows).fill(null), fog = new Array(cols * rows).fill(false);
+  for (let y = 0; y < Math.min(rows, m.rows); y++) for (let x = 0; x < Math.min(cols, m.cols); x++) {
+    tiles[y * cols + x] = m.tiles[y * m.cols + x]; fog[y * cols + x] = m.fog[y * m.cols + x];
+  }
+  Object.assign(m, { cols, rows, tiles, fog });
+  state.tokens.forEach(t => { t.x = clamp(t.x, 0, cols - t.size); t.y = clamp(t.y, 0, rows - t.size); });
+  rebuildTerrain();
+}
+
+/* ================================================================
+   Tokens
+   ================================================================ */
+function occupied(x, y, size, ignoreId) {
+  return state.tokens.some(t => t.id !== ignoreId && x < t.x + t.size && x + size > t.x && y < t.y + t.size && y + size > t.y);
+}
+function freeCellNear(cx, cy, size) {
+  const m = state.map;
+  for (let rad = 0; rad < Math.max(m.cols, m.rows); rad++) {
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue;
+      const x = cx + dx, y = cy + dy;
+      if (x < 0 || y < 0 || x + size > m.cols || y + size > m.rows) continue;
+      if (occupied(x, y, size)) continue;
+      let blocked = false;
+      for (let j = 0; j < size && !blocked; j++) for (let i = 0; i < size; i++) if (m.tiles[(y + j) * m.cols + x + i] === 'wall') { blocked = true; break; }
+      if (!blocked) return { x, y };
+    }
+  }
+  return { x: 0, y: 0 };
+}
+function viewCenterCell() {
+  const r = stage.getBoundingClientRect();
+  return {
+    x: clamp(Math.floor((r.width / 2 - view.x) / view.z / C), 0, state.map.cols - 1),
+    y: clamp(Math.floor((r.height / 2 - view.y) / view.z / C), 0, state.map.rows - 1),
+  };
+}
+function uniqueName(base) {
+  const names = new Set(state.tokens.map(t => t.name));
+  if (!names.has(base)) return base;
+  const stem = base.replace(/\s+\d+$/, '');
+  for (let i = 2; ; i++) if (!names.has(`${stem} ${i}`)) return `${stem} ${i}`;
+}
+function addToken(t) {
+  pushUndo();
+  const c = viewCenterCell(), p = freeCellNear(t.x ?? c.x, t.y ?? c.y, t.size);
+  t.x = p.x; t.y = p.y; t.name = uniqueName(t.name);
+  state.tokens.push(t);
+  if (state.init.order.length) { // join combat in progress
+    t.init = rnd(20) + t.initMod;
+    const act = activeId(); state.init.order.push(t.id); sortInit(act);
+  }
+  selectedId = t.id;
+  commit();
+  return t;
+}
+function removeToken(id) {
+  pushUndo();
+  const o = state.init.order, i = o.indexOf(id);
+  if (i >= 0) { o.splice(i, 1); if (i < state.init.idx) state.init.idx--; if (state.init.idx >= o.length) state.init.idx = 0; }
+  state.tokens = state.tokens.filter(t => t.id !== id);
+  if (selectedId === id) selectedId = null;
+  commit();
+}
+
+function addFloater(t, text, color) {
+  floaters.push({ x: (t.x + t.size / 2) * C, y: t.y * C + 6, text, color, t0: performance.now() });
+}
+function applyDamage(t, n) {
+  n = Math.floor(n); if (!(n > 0)) return;
+  let rest = n;
+  if (t.temp > 0) { const a = Math.min(t.temp, rest); t.temp -= a; rest -= a; }
+  const wasUp = t.hp > 0;
+  t.hp = Math.max(0, t.hp - rest);
+  if (!wasUp && t.type === 'pc' && n > 0) t.ds[1] = Math.min(3, t.ds[1] + 1); // damage while down = failed save
+  addFloater(t, `-${n}`, '#ff6b5e');
+}
+function applyHeal(t, n) {
+  n = Math.floor(n); if (!(n > 0)) return;
+  if (t.hp === 0) t.ds = [0, 0];
+  t.hp = Math.min(t.maxHp, t.hp + n);
+  addFloater(t, `+${n}`, '#7fe0a0');
+}
+function applyTemp(t, n) {
+  n = Math.floor(n); if (!(n >= 0)) return;
+  t.temp = Math.max(t.temp, n); // temp HP doesn't stack — keep the higher
+  addFloater(t, `+${n} tmp`, '#8cc7f0');
+}
+
+/* ================================================================
+   Initiative
+   ================================================================ */
+function sortInit(keepActiveId) {
+  const o = state.init.order;
+  o.sort((a, b) => { const ta = byId(a), tb = byId(b); return (tb.init - ta.init) || (tb.initMod - ta.initMod) || ta.name.localeCompare(tb.name); });
+  if (keepActiveId) state.init.idx = Math.max(0, o.indexOf(keepActiveId));
+}
+function rollInitiative() {
+  if (!state.tokens.length) { toast('Add some tokens first'); return; }
+  pushUndo();
+  state.tokens.forEach(t => { t.init = rnd(20) + t.initMod; });
+  state.init.order = state.tokens.map(t => t.id);
+  sortInit(); state.init.idx = 0; state.init.round = 1;
+  const t = byId(activeId()); selectedId = t.id; centerOn(t);
+  logRoll('Initiative', state.tokens.length + ' combatants', 0, '');
+  commit(); toast(`Round 1 — ${t.name} goes first`);
+}
+function stepTurn(dir) {
+  const o = state.init.order; if (!o.length) { toast('Roll initiative to start combat'); return; }
+  let i = state.init.idx;
+  for (let k = 0; k < o.length; k++) {
+    i += dir;
+    if (i >= o.length) { i = 0; state.init.round++; }
+    if (i < 0) { i = o.length - 1; state.init.round = Math.max(1, state.init.round - 1); }
+    const t = byId(o[i]);
+    if (t && !(t.type === 'enemy' && t.hp <= 0)) break; // skip defeated enemies
+  }
+  state.init.idx = i;
+  const t = byId(o[i]); selectedId = t.id; centerOn(t);
+  commit();
+}
+function endCombat() {
+  if (!state.init.order.length) return;
+  pushUndo(); state.init = { order: [], idx: 0, round: 1 };
+  state.tokens.forEach(t => t.init = null);
+  commit(); toast('Combat ended');
+}
+
+/* ================================================================
+   Dice
+   ================================================================ */
+function rollExpr(raw) {
+  const expr = raw.replace(/\s+/g, '').toLowerCase();
+  if (!expr) return null;
+  const re = /([+-]?)(\d*d\d+|\d+)/g;
+  let m, pos = 0, total = 0, parts = [], d20 = null, dice = 0;
+  while ((m = re.exec(expr))) {
+    if (m.index !== pos) return null;
+    pos = re.lastIndex;
+    if (!m[1] && m.index !== 0) return null;
+    const sign = m[1] === '-' ? -1 : 1, term = m[2];
+    if (term.includes('d')) {
+      const [n, f] = term.split('d'); const cnt = n === '' ? 1 : +n, faces = +f;
+      if (!cnt || !faces || cnt > 100 || faces > 1000) return null;
+      dice += cnt;
+      const rs = Array.from({ length: cnt }, () => rnd(faces));
+      if (faces === 20 && cnt === 1) d20 = rs[0];
+      total += sign * rs.reduce((a, b) => a + b, 0);
+      parts.push(`${sign < 0 ? '−' : parts.length ? '+' : ''}${cnt}d${faces}[${rs.join(',')}]`);
+    } else {
+      total += sign * +term; parts.push(`${sign < 0 ? '−' : '+'}${term}`);
+    }
+  }
+  if (pos !== expr.length || !dice) return null;
+  return { total, detail: parts.join(' '), crit: d20 === 20 ? 'nat20' : d20 === 1 ? 'nat1' : '' };
+}
+function logRoll(label, detail, total, crit) {
+  state.log.unshift({ label, detail, total, crit, id: uid() });
+  state.log = state.log.slice(0, 40);
+  renderDiceLog(); save();
+}
+function doRoll(expr) {
+  const r = rollExpr(expr);
+  if (!r) { toast('Could not read that roll — try something like 2d6+3'); return; }
+  logRoll(expr, r.detail, r.total, r.crit);
+}
+function rollD20(mode) {
+  const a = rnd(20), b = rnd(20), k = mode === 'adv' ? Math.max(a, b) : Math.min(a, b);
+  logRoll(`d20 ${mode === 'adv' ? 'advantage' : 'disadvantage'}`, `[${a}, ${b}] → ${k}`, k, k === 20 ? 'nat20' : k === 1 ? 'nat1' : '');
+}
+
+/* ================================================================
+   Panels (DOM)
+   ================================================================ */
+let amtVal = '';
+function commit() { dirty = true; renderPanels(); save(); }
+function renderPanels() { renderSel(); renderRoster(); renderInit(); }
+
+function renderSel() {
+  const p = $('#selPanel'), t = sel();
+  if (!t) {
+    p.innerHTML = `<div class="empty">Click a token on the map to select it.<br><small>Double-click a token to edit it.</small></div>`;
+    return;
+  }
+  const deathSaves = t.type === 'pc' && t.hp === 0 ? `
+    <div class="ds"><span>Death saves</span>
+      <span class="dots" title="Successes">✔ ${[0, 1, 2].map(i => `<i class="dot s ${t.ds[0] > i ? 'on' : ''}" data-ds="0" data-i="${i}"></i>`).join('')}</span>
+      <span class="dots" title="Failures">✖ ${[0, 1, 2].map(i => `<i class="dot f ${t.ds[1] > i ? 'on' : ''}" data-ds="1" data-i="${i}"></i>`).join('')}</span>
+    </div>${t.ds[0] >= 3 ? '<div class="defeated" style="color:#9fe3b3">Stable</div>' : t.ds[1] >= 3 ? '<div class="defeated">Dead</div>' : ''}` : '';
+  p.innerHTML = `
+    <div class="selHead">
+      <div class="avatar" style="--c:${esc(t.color)}">${esc(t.icon || t.name.charAt(0))}</div>
+      <div style="min-width:0">
+        <div class="selName">${esc(t.name)}</div>
+        <span class="badge ${t.type}">${t.type === 'pc' ? 'Character' : 'Enemy'}</span>
+        ${t.hidden ? '<span class="badge">Hidden</span>' : ''}
+      </div>
+      <div class="spacer"></div>
+      <button id="selEdit" title="Edit (double-click token)">✎ Edit</button>
+    </div>
+    <div class="hpbar big" id="selBar"><div class="fill"></div><div class="tmp"></div><div class="lbl"></div></div>
+    <div class="hint">Click or drag the bar to set HP</div>
+    <div class="quick">
+      <button class="neg" data-d="-10">−10</button><button class="neg" data-d="-5">−5</button><button class="neg" data-d="-1">−1</button>
+      <button class="pos" data-d="1">+1</button><button class="pos" data-d="5">+5</button><button class="pos" data-d="10">+10</button>
+    </div>
+    <div class="dmgRow">
+      <input id="amt" type="number" min="0" placeholder="Amount" value="${esc(amtVal)}">
+      <button id="doDmg" class="danger" title="Temp HP absorbs damage first">Damage</button>
+      <button id="doHeal" class="good">Heal</button>
+      <button id="doTemp" title="Set temporary HP">Temp</button>
+    </div>
+    <div class="stats">
+      <div><b>${t.ac}</b><span>AC</span></div>
+      <div><b>${fmtMod(t.initMod)}</b><span>Init${t.init != null ? ' · ' + t.init : ''}</span></div>
+      <div><b>${t.size * 5} ft</b><span>Space</span></div>
+    </div>
+    ${deathSaves}
+    ${t.type === 'enemy' && t.hp === 0 ? '<div class="defeated">Defeated</div>' : ''}
+    <div class="conds">${CONDITIONS.map(([n, c]) => `<button class="cond ${t.conds.includes(n) ? 'on' : ''}" style="--c:${c}" data-c="${n}">${n}</button>`).join('')}</div>
+    ${t.notes ? `<div class="notes">${esc(t.notes)}</div>` : ''}`;
+
+  $('#selEdit').onclick = () => openDialog(t);
+  p.querySelectorAll('.quick button').forEach(b => b.onclick = () => {
+    pushUndo(); const d = +b.dataset.d;
+    if (d < 0) applyDamage(t, -d); else applyHeal(t, d);
+    hpChanged(t);
+  });
+  const amt = $('#amt');
+  amt.oninput = () => amtVal = amt.value;
+  amt.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $(e.shiftKey ? '#doHeal' : '#doDmg').click(); } };
+  const useAmt = fn => () => { const n = +amt.value; if (!(n > 0) && fn !== applyTemp) { amt.focus(); return; } pushUndo(); fn(t, n); hpChanged(t); };
+  $('#doDmg').onclick = useAmt(applyDamage);
+  $('#doHeal').onclick = useAmt(applyHeal);
+  $('#doTemp').onclick = useAmt(applyTemp);
+  p.querySelectorAll('.cond').forEach(b => b.onclick = () => {
+    pushUndo(); const c = b.dataset.c;
+    t.conds = t.conds.includes(c) ? t.conds.filter(x => x !== c) : [...t.conds, c];
+    b.classList.toggle('on'); dirty = true; save();
+  });
+  p.querySelectorAll('.dot').forEach(d => d.onclick = () => {
+    pushUndo(); const k = +d.dataset.ds, i = +d.dataset.i;
+    t.ds[k] = t.ds[k] === i + 1 ? i : i + 1; renderSel(); save();
+  });
+
+  // interactive HP bar
+  const bar = $('#selBar');
+  const setFrom = e => {
+    const r = bar.getBoundingClientRect();
+    const f = clamp((e.clientX - r.left) / r.width, 0, 1);
+    const hp = Math.round(f * t.maxHp);
+    if (hp !== t.hp) { if (hp > 0 && t.hp === 0) t.ds = [0, 0]; t.hp = hp; hpChanged(t, true); }
+  };
+  bar.onpointerdown = e => { pushUndo(); bar.setPointerCapture(e.pointerId); bar.classList.add('dragging'); setFrom(e); };
+  bar.onpointermove = e => { if (bar.hasPointerCapture(e.pointerId)) setFrom(e); };
+  bar.onpointerup = bar.onpointercancel = () => { bar.classList.remove('dragging'); renderSel(); };
+  updateSelHP();
+}
+
+let lastDown = null;
+function hpChanged(t, live) {
+  dirty = true; save(); renderRoster(); renderInit();
+  const down = t.hp === 0;
+  if (!live && down !== lastDown) renderSel(); else updateSelHP();
+}
+function updateSelHP() {
+  const t = sel(), bar = $('#selBar'); if (!t || !bar) return;
+  lastDown = t.hp === 0;
+  const f = clamp(t.hp / t.maxHp, 0, 1), tf = clamp(t.temp / t.maxHp, 0, 1 - f);
+  bar.querySelector('.fill').style.cssText = `width:${f * 100}%;background:linear-gradient(${shade(hpColor(f), 0.15)},${shade(hpColor(f), -0.2)})`;
+  bar.querySelector('.tmp').style.cssText = `left:${f * 100}%;width:${t.temp ? Math.max(tf * 100, 1.5) : 0}%`;
+  bar.querySelector('.lbl').textContent = `${t.hp} / ${t.maxHp}${t.temp ? `  (+${t.temp} temp)` : ''}`;
+}
+
+function rosterCard(t) {
+  const f = clamp(t.hp / t.maxHp, 0, 1);
+  return `<div class="card ${t.id === selectedId ? 'sel' : ''} ${t.hp === 0 ? 'down' : ''}" data-id="${t.id}">
+    <span class="av" style="--c:${esc(t.color)}">${esc(t.icon || t.name.charAt(0))}</span>
+    <div class="ci"><div class="cn"><span>${esc(t.name)}${t.hidden ? ' 👁‍🗨' : ''}</span><small>AC ${t.ac}</small></div>
+      <div class="hpbar mini"><div class="fill" style="width:${f * 100}%;background:${hpColor(f)}"></div>${t.temp ? `<div class="tmp" style="left:${f * 100}%;width:${clamp(t.temp / t.maxHp, 0, 1 - f) * 100}%"></div>` : ''}</div>
+    </div>
+    <span class="hpn">${t.hp}/${t.maxHp}</span></div>`;
+}
+function renderRoster() {
+  const pcs = state.tokens.filter(t => t.type === 'pc'), ens = state.tokens.filter(t => t.type === 'enemy');
+  $('#pcList').innerHTML = pcs.map(rosterCard).join('') || '<div class="emptyList">No characters yet.</div>';
+  $('#enList').innerHTML = ens.map(rosterCard).join('') || '<div class="emptyList">No enemies on the map.</div>';
+}
+function renderInit() {
+  const o = state.init.order, list = $('#initList');
+  $('#roundLbl').textContent = o.length ? `Round ${state.init.round}` : '';
+  if (!o.length) { list.innerHTML = '<li style="cursor:default;color:var(--muted);font-size:12px;background:none">Not in combat.</li>'; return; }
+  const focused = document.activeElement?.classList.contains('iv') ? document.activeElement.closest('li')?.dataset.id : null;
+  list.innerHTML = o.map((id, i) => {
+    const t = byId(id); if (!t) return '';
+    return `<li class="${i === state.init.idx ? 'active' : ''} ${t.hp === 0 ? 'down' : ''}" data-id="${id}">
+      <input class="iv" type="number" value="${t.init ?? ''}" title="Initiative — edit to reorder">
+      <span class="av" style="--c:${esc(t.color)}">${esc(t.icon || t.name.charAt(0))}</span>
+      <span class="n">${esc(t.name)}</span><span class="hpn">${t.hp}/${t.maxHp}</span></li>`;
+  }).join('');
+  if (focused) list.querySelector(`li[data-id="${focused}"] .iv`)?.focus();
+}
+function renderDiceLog() {
+  $('#diceLog').innerHTML = state.log.map((l, i) => `<li class="${l.crit}">
+    <b>${l.label === 'Initiative' ? '⚔' : l.total}</b>
+    <div class="dd"><div>${esc(l.label)}${l.crit === 'nat20' ? ' — natural 20!' : l.crit === 'nat1' ? ' — natural 1' : ''}</div><small>${esc(l.detail)}</small></div>
+    ${l.label === 'Initiative' ? '' : `<button data-apply="dmg" data-i="${i}" title="Deal ${l.total} damage to selected token">⚔</button><button data-apply="heal" data-i="${i}" title="Heal selected token by ${l.total}">✚</button>`}
+  </li>`).join('');
+}
+
+/* ================================================================
+   Token dialog
+   ================================================================ */
+const dlg = $('#tokDlg'), form = $('#tokForm');
+let dlgTarget = null, dlgIsNew = false;
+function openDialog(t, isNew = false) {
+  dlgTarget = t; dlgIsNew = isNew;
+  $('#dlgTitle').textContent = isNew ? (t.type === 'pc' ? 'New character' : 'New enemy') : `Edit ${t.name}`;
+  $('#dlgDel').style.display = isNew ? 'none' : '';
+  $('#dlgDup').style.display = isNew ? 'none' : '';
+  const f = form.elements;
+  ['name', 'type', 'icon', 'color', 'hp', 'maxHp', 'temp', 'ac', 'initMod', 'notes'].forEach(k => f[k].value = t[k]);
+  f.size.value = String(t.size); f.hidden.checked = !!t.hidden;
+  dlg.returnValue = '';
+  dlg.showModal();
+  f.name.select();
+}
+$('#emojiPick').innerHTML = EMOJIS.map(e => `<button type="button">${e}</button>`).join('');
+$('#emojiPick').onclick = e => { if (e.target.tagName === 'BUTTON') form.elements.icon.value = e.target.textContent; };
+
+function readForm(t) {
+  const f = form.elements, num = (v, d) => Number.isFinite(+v) && v !== '' ? Math.round(+v) : d;
+  t.name = f.name.value.trim() || 'Token';
+  t.type = f.type.value; t.icon = f.icon.value.trim(); t.color = f.color.value;
+  t.maxHp = Math.max(1, num(f.maxHp.value, t.maxHp));
+  t.hp = clamp(num(f.hp.value, t.maxHp), 0, t.maxHp);
+  t.temp = Math.max(0, num(f.temp.value, 0));
+  t.ac = Math.max(0, num(f.ac.value, 10)); t.initMod = num(f.initMod.value, 0);
+  t.size = clamp(num(f.size.value, 1), 1, 4); t.notes = f.notes.value; t.hidden = f.hidden.checked;
+  t.x = clamp(t.x, 0, Math.max(0, state.map.cols - t.size)); t.y = clamp(t.y, 0, Math.max(0, state.map.rows - t.size));
+}
+dlg.addEventListener('close', () => {
+  const v = dlg.returnValue, t = dlgTarget; dlgTarget = null;
+  if (!t || !v || v === 'cancel') return;
+  if (v === 'delete') { removeToken(t.id); return; }
+  if (dlgIsNew) { readForm(t); addToken(t); return; }
+  pushUndo(); readForm(t);
+  if (state.init.order.includes(t.id)) sortInit(activeId());
+  if (v === 'dup') {
+    const copy = mkToken({ ...JSON.parse(JSON.stringify(t)), id: uid(), init: null, x: t.x + t.size, y: t.y });
+    addToken(copy); toast(`Created ${copy.name}`); return;
+  }
+  commit();
+});
+
+/* ================================================================
+   Canvas input
+   ================================================================ */
+function dragCell(p) {
+  const t = p.tok;
+  return {
+    x: clamp(Math.round((p.wx - p.offX) / C), 0, state.map.cols - t.size),
+    y: clamp(Math.round((p.wy - p.offY) / C), 0, state.map.rows - t.size),
+  };
+}
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId);
+  const w = toWorld(e), c = toCell(w);
+  const startPan = () => { ptr = { mode: 'pan', panning: true, sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y }; cv.style.cursor = 'grabbing'; };
+  if (e.button === 1 || e.button === 2 || spaceDown || tool === 'pan') return startPan();
+  switch (tool) {
+    case 'select': {
+      const t = hitToken(w);
+      if (t) {
+        selectedId = t.id; renderSel(); renderRoster();
+        ptr = { mode: 'drag', tok: t, offX: w.x - t.x * C, offY: w.y - t.y * C, wx: w.x, wy: w.y, ox: t.x, oy: t.y, moved: false, sx: e.clientX, sy: e.clientY };
+        cv.style.cursor = 'grabbing';
+      } else {
+        startPan(); ptr.deselect = true;
+      }
+      break;
+    }
+    case 'paint': case 'erase': case 'fogHide': case 'fogReveal':
+      pushUndo(); ptr = { mode: 'paint', last: c }; brushApply(c.x, c.y); break;
+    case 'fill':
+      pushUndo(); floodFill(c); save(); break;
+    case 'ruler':
+      ruler = { a: c, b: c }; ptr = { mode: 'ruler' }; dirty = true; break;
+  }
+});
+cv.addEventListener('pointermove', e => {
+  const w = toWorld(e), c = toCell(w);
+  if (!hoverCell || hoverCell.x !== c.x || hoverCell.y !== c.y) { hoverCell = c; dirty = true; }
+  if (!ptr) return;
+  if (ptr.mode === 'pan') {
+    view.x = ptr.vx + e.clientX - ptr.sx; view.y = ptr.vy + e.clientY - ptr.sy;
+    if (Math.abs(e.clientX - ptr.sx) + Math.abs(e.clientY - ptr.sy) > 4) ptr.deselect = false;
+    dirty = true;
+  } else if (ptr.mode === 'drag') {
+    ptr.wx = w.x; ptr.wy = w.y;
+    if (Math.abs(e.clientX - ptr.sx) + Math.abs(e.clientY - ptr.sy) > 4) ptr.moved = true;
+    dirty = true;
+  } else if (ptr.mode === 'paint') {
+    line(ptr.last, c, (x, y) => brushApply(x, y)); ptr.last = c;
+  } else if (ptr.mode === 'ruler') {
+    ruler.b = c; dirty = true;
+  }
+});
+function endPointer() {
+  if (!ptr) return;
+  if (ptr.mode === 'drag' && ptr.moved) {
+    const c = dragCell(ptr), t = ptr.tok;
+    if (c.x !== t.x || c.y !== t.y) { pushUndo(); t.x = c.x; t.y = c.y; save(); }
+  } else if (ptr.mode === 'paint') save();
+  else if (ptr.mode === 'pan' && ptr.deselect && selectedId) { selectedId = null; renderSel(); renderRoster(); }
+  else if (ptr.mode === 'ruler') { /* keep ruler visible until next click / Esc */ }
+  ptr = null; cv.style.cursor = cursorFor(); dirty = true;
+}
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+cv.addEventListener('pointerleave', () => { if (!ptr) { hoverCell = null; dirty = true; } });
+cv.addEventListener('dblclick', e => { if (tool !== 'select') return; const t = hitToken(toWorld(e)); if (t) openDialog(t); });
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const isMouseWheel = e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
+  if (e.ctrlKey) zoomAt(Math.exp(-e.deltaY * 0.01), mx, my);          // trackpad pinch
+  else if (isMouseWheel) zoomAt(Math.exp(-Math.sign(e.deltaY) * 0.15), mx, my);
+  else { view.x -= e.deltaX; view.y -= e.deltaY; dirty = true; }       // trackpad two-finger scroll
+}, { passive: false });
+
+function cursorFor() {
+  if (spaceDown || tool === 'pan') return 'grab';
+  return { select: 'default', ruler: 'crosshair', fill: 'cell' }[tool] || 'crosshair';
+}
+function setTool(t) {
+  tool = t; ruler = null;
+  document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+  cv.style.cursor = cursorFor(); dirty = true;
+}
+
+/* ================================================================
+   Keyboard
+   ================================================================ */
+const typing = () => { const a = document.activeElement; return dlg.open || (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)); };
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !typing()) { e.preventDefault(); undo(); return; }
+  if (typing() || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (k === ' ') { e.preventDefault(); if (!spaceDown) { spaceDown = true; cv.style.cursor = 'grab'; } return; }
+  const toolKeys = { v: 'select', b: 'paint', e: 'erase', f: 'fill', h: 'fogHide', g: 'fogReveal', r: 'ruler' };
+  if (toolKeys[k.toLowerCase()]) { setTool(toolKeys[k.toLowerCase()]); return; }
+  if (k === 'n' || k === 'N') { stepTurn(1); return; }
+  if (k === 'p' || k === 'P') { $('#pvChk').click(); return; }
+  if (k === '0') { fitView(); return; }
+  if (k === '+' || k === '=') { const r = stage.getBoundingClientRect(); zoomAt(1.2, r.width / 2, r.height / 2); return; }
+  if (k === '-') { const r = stage.getBoundingClientRect(); zoomAt(1 / 1.2, r.width / 2, r.height / 2); return; }
+  if (k === 'Escape') { ruler = null; selectedId = null; renderSel(); renderRoster(); dirty = true; return; }
+  const t = sel(); if (!t) return;
+  if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); removeToken(t.id); return; }
+  const mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[k];
+  if (mv) {
+    e.preventDefault(); pushUndo();
+    t.x = clamp(t.x + mv[0], 0, state.map.cols - t.size); t.y = clamp(t.y + mv[1], 0, state.map.rows - t.size);
+    dirty = true; save();
+  }
+});
+document.addEventListener('keyup', e => { if (e.key === ' ') { spaceDown = false; cv.style.cursor = cursorFor(); } });
+window.addEventListener('blur', () => { spaceDown = false; });
+
+/* ================================================================
+   Wire up controls
+   ================================================================ */
+$('#tools').onclick = e => { const b = e.target.closest('button'); if (b) setTool(b.dataset.tool); };
+$('#terrainList').innerHTML = Object.entries(TERRAIN).map(([k, v]) => `<button data-t="${k}"><i style="background:${v.color}"></i>${v.name}</button>`).join('');
+function setTerrain(k) {
+  terrain = k;
+  document.querySelectorAll('#terrainList button').forEach(b => b.classList.toggle('on', b.dataset.t === k));
+  if (!['paint', 'fill'].includes(tool)) setTool('paint'); else dirty = true;
+}
+$('#terrainList').onclick = e => { const b = e.target.closest('button'); if (b) setTerrain(b.dataset.t); };
+function setBrush(n) { brush = n; document.querySelectorAll('#brushSeg button').forEach(b => b.classList.toggle('on', +b.dataset.b === n)); dirty = true; }
+$('#brushSeg').onclick = e => { const b = e.target.closest('button'); if (b) setBrush(+b.dataset.b); };
+
+function syncMapInputs() {
+  $('#colsIn').value = state.map.cols; $('#rowsIn').value = state.map.rows;
+  $('#gridChk').checked = state.map.grid; $('#bgOp').value = state.map.bgOpacity;
+  $('#mapName').textContent = state.name;
+  document.title = `${state.name} · Dungeon Table`;
+}
+$('#resizeBtn').onclick = () => {
+  const c = clamp(Math.round(+$('#colsIn').value) || state.map.cols, 5, 150), r = clamp(Math.round(+$('#rowsIn').value) || state.map.rows, 5, 150);
+  pushUndo(); resizeMap(c, r); syncMapInputs(); fitView(); save(); toast(`Map is now ${c} × ${r}`);
+};
+$('#fillAllBtn').onclick = () => { pushUndo(); state.map.tiles.fill(terrain); rebuildTerrain(); save(); };
+$('#clearBtn').onclick = () => { pushUndo(); state.map.tiles.fill(null); rebuildTerrain(); save(); };
+$('#gridChk').onchange = e => { state.map.grid = e.target.checked; dirty = true; save(); };
+$('#fogAllBtn').onclick = () => { pushUndo(); state.map.fog.fill(true); dirty = true; save(); };
+$('#fogNoneBtn').onclick = () => { pushUndo(); state.map.fog.fill(false); dirty = true; save(); };
+$('#bgBtn').onclick = () => $('#bgFile').click();
+$('#bgFile').onchange = e => {
+  const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      // shrink very large images so they fit in browser storage
+      const max = 2400, s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      state.map.bg = c.toDataURL('image/jpeg', 0.85);
+      if (confirm('Clear painted terrain so the image shows through? (Cancel keeps terrain on top.)')) { pushUndo(); state.map.tiles.fill(null); rebuildTerrain(); }
+      loadBg(); save(); toast('Background image added — resize the map grid to line it up');
+    };
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+};
+$('#bgOp').oninput = e => { state.map.bgOpacity = +e.target.value; dirty = true; save(); };
+$('#bgClear').onclick = () => { state.map.bg = null; loadBg(); save(); };
+
+$('#mapName').addEventListener('input', () => { state.name = $('#mapName').textContent.trim() || 'Untitled map'; document.title = `${state.name} · Dungeon Table`; save(); });
+$('#mapName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+
+$('#undoBtn').onclick = undo;
+$('#pvChk').onchange = e => { playerView = e.target.checked; document.body.classList.toggle('pv', playerView); dirty = true; };
+$('#fitBtn').onclick = fitView;
+$('#zin').onclick = () => { const r = stage.getBoundingClientRect(); zoomAt(1.25, r.width / 2, r.height / 2); };
+$('#zout').onclick = () => { const r = stage.getBoundingClientRect(); zoomAt(0.8, r.width / 2, r.height / 2); };
+$('#exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = (state.name || 'map').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '.json';
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').onchange = e => {
+  const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+  file.text().then(txt => {
+    const s = JSON.parse(txt);
+    if (!s || !s.map || !Array.isArray(s.tokens)) throw new Error('bad');
+    pushUndo(); state = normalize(s); selectedId = null;
+    rebuildTerrain(); loadBg(); syncMapInputs(); renderPanels(); renderDiceLog(); fitView(); save(); toast(`Loaded “${state.name}”`);
+  }).catch(() => toast('That file is not a Dungeon Table map'));
+};
+$('#newBtn').onclick = () => {
+  const ans = prompt('New map size (columns × rows). Type "sample" to reload the demo map.', '30x20');
+  if (ans == null) return;
+  pushUndo();
+  if (ans.trim().toLowerCase() === 'sample') state = sampleState();
+  else {
+    const m = ans.match(/(\d+)\s*[x×*, ]\s*(\d+)/i);
+    const cols = clamp(m ? +m[1] : 30, 5, 150), rows = clamp(m ? +m[2] : 20, 5, 150);
+    const keep = state.tokens.length && confirm('Keep your current characters and enemies on the new map?');
+    const old = state.tokens;
+    state = blankState(cols, rows);
+    if (keep) { state.tokens = old.map(t => ({ ...t, init: null })); state.tokens.forEach(t => { const p = freeCellNear(Math.floor(cols / 2), Math.floor(rows / 2), t.size); t.x = p.x; t.y = p.y; }); }
+  }
+  selectedId = null; rebuildTerrain(); loadBg(); syncMapInputs(); renderPanels(); renderDiceLog(); fitView(); save();
+};
+
+// roster & initiative clicks
+function rosterClick(e) {
+  const card = e.target.closest('[data-id]'); if (!card || e.target.classList.contains('iv')) return;
+  const t = byId(card.dataset.id); if (!t) return;
+  selectedId = t.id; centerOn(t); renderSel(); renderRoster(); renderInit();
+}
+$('#pcList').onclick = rosterClick; $('#enList').onclick = rosterClick; $('#initList').onclick = rosterClick;
+$('#pcList').ondblclick = $('#enList').ondblclick = e => { const c = e.target.closest('[data-id]'); if (c) openDialog(byId(c.dataset.id)); };
+$('#initList').addEventListener('change', e => {
+  if (!e.target.classList.contains('iv')) return;
+  const t = byId(e.target.closest('li').dataset.id); if (!t) return;
+  pushUndo(); t.init = Math.round(+e.target.value) || 0; sortInit(activeId()); commit();
+});
+$('#initRoll').onclick = rollInitiative;
+$('#initNext').onclick = () => stepTurn(1);
+$('#initPrev').onclick = () => stepTurn(-1);
+$('#initEnd').onclick = endCombat;
+
+$('#addPcBtn').onclick = () => openDialog(mkToken({ name: 'New hero', type: 'pc', icon: '🧙', color: '#3b82c4', maxHp: 20, ac: 14, initMod: 2 }), true);
+$('#presetSel').innerHTML = `<option value="">Custom enemy…</option>` + Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${p.icon} ${p.name} (HP ${p.maxHp}, AC ${p.ac})</option>`).join('');
+$('#presetSel').value = 'goblin';
+$('#addEnBtn').onclick = () => {
+  const k = $('#presetSel').value;
+  if (!k) { openDialog(mkToken({ name: 'Monster', type: 'enemy', icon: '👹', color: '#b3271c', maxHp: 15, ac: 13 }), true); return; }
+  const t = addToken(mkToken({ ...PRESETS[k], type: 'enemy' }));
+  toast(`${t.name} added — drag it into position`);
+};
+
+// dice
+$('#diceBtns').innerHTML = [4, 6, 8, 10, 12, 20, 100].map(n => `<button data-d="${n}">d${n}</button>`).join('') +
+  `<button data-adv="adv" title="Roll 2d20, keep highest">Adv</button>`;
+$('#diceBtns').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.adv) { rollD20(e.shiftKey ? 'dis' : 'adv'); return; }
+  doRoll('1d' + b.dataset.d);
+};
+$('#diceBtns').oncontextmenu = e => { const b = e.target.closest('[data-adv]'); if (b) { e.preventDefault(); rollD20('dis'); } };
+$('#diceBtns').querySelector('[data-adv]').title = 'Click: advantage · Shift-click or right-click: disadvantage';
+$('#diceForm').onsubmit = e => { e.preventDefault(); doRoll($('#diceExpr').value); };
+$('#diceLog').onclick = e => {
+  const b = e.target.closest('[data-apply]'); if (!b) return;
+  const t = sel(); if (!t) { toast('Select a token first'); return; }
+  const n = state.log[+b.dataset.i]?.total; if (!(n > 0)) return;
+  pushUndo(); if (b.dataset.apply === 'dmg') applyDamage(t, n); else applyHeal(t, n);
+  hpChanged(t);
+};
+
+/* ================================================================
+   Boot
+   ================================================================ */
+resizeCanvas();
+rebuildTerrain(); loadBg(); syncMapInputs();
+setTool('select'); setTerrain('floor'); setTool('select'); setBrush(1);
+renderPanels(); renderDiceLog();
+requestAnimationFrame(() => { fitView(); requestAnimationFrame(loop); });
+</script>
+</body>
+</html>
